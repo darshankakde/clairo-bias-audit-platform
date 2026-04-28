@@ -113,10 +113,12 @@ ENV/
 env.bak/
 venv.bak/
 
-# Firebase
+# Firebase & Service Accounts
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+*service-account*.json
+credentials.json
 
 # OS
 .DS_Store
