@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Clairo · Bias Audit Report — {{ audit.dataset_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f7fb; --surface:#ffffff; --ink:#0b0d17; --muted:#5b6172; --line:#e7e8ef;
+    --violet:#6d5efc; --violet-2:#8b7bff; --violet-soft:#eeebff;
+    --teal:#0bb39a; --teal-soft:#e3f7f3;
+    --amber:#f59e0b; --amber-soft:#fef3e0;
+    --rose:#ef4444; --rose-soft:#fdecec;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(11,13,23,.04), 0 8px 24px rgba(11,13,23,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .page{max-width:1080px;margin:0 auto;padding:48px 40px 80px}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+  /* Brand header */
+  .brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em}
+  .logo-mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--violet),#a78bfa);display:grid;place-items:center;color:#fff;font-weight:800;box-shadow:0 6px 16px rgba(109,94,252,.35)}
+  .logo-text{font-size:18px}
+  .logo-text small{display:block;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+  .brand .meta{font-size:12px;color:var(--muted);text-align:right;line-height:1.6}
+  .brand .meta b{color:var(--ink);font-weight:600}
+
+  /* Hero */
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:32px;box-shadow:var(--shadow);position:relative;overflow:hidden;margin-bottom:24px}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 200px at 90% -20%,rgba(109,94,252,.10),transparent 60%);pointer-events:none}
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--violet);font-weight:700}
+  .hero h1{margin:8px 0 6px;font-size:30px;letter-spacing:-.02em;font-weight:800}
+  .hero p.lede{margin:0;color:var(--muted);max-width:680px;line-height:1.55}
+  .hero .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
+  .stat{background:#fafbff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .stat .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.01em}
+  .stat .v.bad{color:var(--rose)} .stat .v.warn{color:var(--amber)} .stat .v.ok{color:var(--teal)}
+
+  /* Verdict */
+  .verdict{display:flex;gap:14px;align-items:flex-start;padding:18px;border-radius:12px;margin-top:20px;border:1px solid var(--rose);background:var(--rose-soft)}
+  .verdict .dot{width:10px;height:10px;border-radius:50%;background:var(--rose);margin-top:7px;flex-shrink:0;box-shadow:0 0 0 4px rgba(239,68,68,.18)}
+  .verdict h3{margin:0 0 4px;font-size:15px;color:#7a1d1d}
+  .verdict p{margin:0;color:#7a1d1d;font-size:13.5px;line-height:1.55}
+
+  /* Sections */
+  section{margin-top:28px}
+  .sec-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 14px}
+  .sec-head h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700}
+  .sec-head .rule{flex:1;height:1px;background:var(--line);margin:0 14px}
+
+  /* Attribute card */
+  .attr{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+  .attr-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfbff,#fff)}
+  .attr-head .left{display:flex;align-items:center;gap:12px}
+  .attr-icon{width:34px;height:34px;border-radius:10px;background:var(--violet-soft);color:var(--violet);display:grid;place-items:center;font-weight:700}
+  .attr-head h3{margin:0;font-size:18px;letter-spacing:-.01em}
+  .attr-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .pill.high{background:var(--rose-soft);color:#b91c1c}
+  .pill.mod{background:var(--amber-soft);color:#92400e}
+  .pill.low{background:var(--teal-soft);color:#0f766e}
+
+  .attr-body{padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .metric{border:1px solid var(--line);border-radius:10px;padding:12px}
+  .metric .name{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .metric .val{font-size:20px;font-weight:700;margin-top:4px;font-feature-settings:"tnum"}
+  .metric .bar{height:4px;border-radius:3px;background:#eef0f7;margin-top:8px;overflow:hidden}
+  .metric .bar i{display:block;height:100%;border-radius:3px}
+  .metric .hint{font-size:11px;color:var(--muted);margin-top:6px}
+
+  .chart-wrap{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
+  .chart-wrap h4{margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .chart-box{position:relative;height:240px}
+
+  /* Insight */
+  .insight{padding:14px 22px 22px}
+  .insight .card{background:linear-gradient(180deg,#fbfaff,#fff);border:1px solid var(--line);border-left:3px solid var(--violet);border-radius:10px;padding:14px 16px}
+  .insight .card .lab{font-size:11px;color:var(--violet);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+  .insight .card p{margin:0;font-size:13.5px;color:#2b3040;line-height:1.6}
+
+  /* Recommendations */
+  .recs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .rec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+  .rec .tag{font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:var(--teal);background:var(--teal-soft);padding:3px 8px;border-radius:999px;display:inline-block;margin-bottom:8px}
+  .rec h4{margin:0 0 4px;font-size:14px}
+  .rec p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.55}
+
+  /* Footer */
+  footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+  footer .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;background:var(--violet-soft);color:var(--violet);border-radius:999px;font-weight:600}
+
+  @media print{
+    @page { size: A4 portrait; margin: 1.2cm; }
+    body{background:#fff}
+    .page{padding:0; max-width:100%; margin:0;}
+    .attr,.hero,.rec{box-shadow:none; border-color:#e0e0e0;}
+    .attr{page-break-inside:avoid; break-inside:avoid; margin-bottom: 24px;}
+    .hero{page-break-inside:avoid; break-inside:avoid;}
+  }
+  @media (max-width:760px){
+    .hero .grid{grid-template-columns:repeat(2,1fr)}
+    .attr-body{grid-template-columns:1fr}
+    .recs{grid-template-columns:1fr}
+  }
+
+  .verdict-warn{border:1px solid var(--amber);background:var(--amber-soft)}
+  .verdict-warn h3{color:#92400e} .verdict-warn p{color:#92400e} .verdict-warn .dot{background:var(--amber);box-shadow:0 0 0 4px rgba(245,158,11,.18)}
+  .verdict-ok{border:1px solid var(--teal);background:var(--teal-soft)}
+  .verdict-ok h3{color:#095044} .verdict-ok p{color:#095044} .verdict-ok .dot{background:var(--teal);box-shadow:0 0 0 4px rgba(11,179,154,.18)}
+  
+  /* Pure HTML Chart Fallback styling matching Chart.js */
+  .html-chart-container { display: flex; height: 180px; margin-top: 12px; font-family: 'Inter', sans-serif; }
+  .html-y-axis { display: flex; flex-direction: column; justify-content: space-between; padding-right: 8px; text-align: right; color: #8e95a5; font-size: 10px; width: 32px; flex-shrink: 0; height: 160px; }
+  .html-chart-area { flex: 1; position: relative; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-around; padding: 0; margin-bottom: 20px; height: 160px; }
+  .html-grid-line { position: absolute; left: 0; right: 0; border-top: 1px dashed #e5e7eb; z-index: 0; }
+  .html-col { z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 160px; width: 44px; position: relative; }
+  .html-col .fill { width: 100%; border-radius: 6px 6px 0 0; }
+  .html-col .ax { position: absolute; bottom: -22px; font-size: 9.5px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 60px; font-weight: 500; }
+
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- BRAND HEADER -->
+  <div class="brand">
+    <div class="logo">
+      <div class="logo-mark">C</div>
+      <div class="logo-text">Clairo<small>Fairness Intelligence</small></div>
+    </div>
+    <div class="meta">
+      <div><b>Audit ID</b> · <span class="mono">{{ audit_id }}</span></div>
+      <div><b>Generated</b> · {{ audit.created_at_formatted }}</div>
+      <div><b>Status</b> · <span style="color:var(--teal)">● {{ audit.status | title }}</span></div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Bias Audit Report</div>
+    <h1>{{ audit.dataset_name }}</h1>
+    <p class="lede">A fairness audit of the <b>{{ audit.outcome_col }}</b> outcome (positive class: <span class="mono">{{ audit.positive_value }}</span>) across {{ audit.sensitive_attrs | length }} sensitive attributes — {{ audit.sensitive_attrs | join(', ') }} — measuring statistical parity, equal opportunity, and disparate impact.</p>
+
+    <div class="grid">
+      <div class="stat"><div class="l">Records analyzed</div><div class="v">{{ total_records }}</div></div>
+      <div class="stat"><div class="l">Sensitive attributes</div><div class="v">{{ audit.sensitive_attrs | length }}</div></div>
+      <div class="stat"><div class="l">High-severity findings</div><div class="v {% if high_severity_count > 0 %}bad{% endif %}">{{ high_severity_count }}</div></div>
+      <div class="stat"><div class="l">Overall fairness</div><div class="v {% if audit.fairness_score and audit.fairness_score <= 40 %}bad{% elif audit.fairness_score and audit.fairness_score <= 70 %}warn{% else %}ok{% endif %}">{% if audit.fairness_score and audit.fairness_score <= 40 %}At Risk{% elif audit.fairness_score and audit.fairness_score <= 70 %}Moderate{% else %}Fair{% endif %}</div></div>
+    </div>
+
+    {% if audit.fairness_score and audit.fairness_score <= 40 %}
+    <div class="verdict">
+      <div class="dot"></div>
+      <div>
+        <h3>Fairness verdict — Action required</h3>
+        <p>Multiple attributes failed critical fairness bounds. The dataset, as-is, is <b>not safe</b> for training automated decision systems. We recommend rebalancing, proxy removal, or post-hoc threshold adjustment before deployment.</p>
+      </div>
+    </div>
+    {% elif audit.fairness_score and audit.fairness_score <= 70 %}
+    <div class="verdict verdict-warn">
+      <div class="dot"></div>
+      <div>
+        <h3>Fairness verdict — Caution advised</h3>
+        <p>Moderate bias concerns were detected. Consider monitoring for disparate impact and applying strategic reweighting before utilizing this data in sensitive down-stream decisions.</p>
+      </div>
+    </div>
+    {% else %}
+    <div class="verdict verdict-ok">
+      <div class="dot"></div>
+      <div>
+        <h3>Fairness verdict — Safe for baseline usage</h3>
+        <p>This dataset meets basic fairness thresholds based on available constraints. Continue monitoring for drift as demographic baselines evolve.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ATTRIBUTES -->
+  <section>
+    <div class="sec-head"><h2>Attribute Findings</h2><div class="rule"></div></div>
+
+    {% for attr in audit.sensitive_attrs %}
+    {% set metrics = audit.metrics[attr] %}
+    {% set severity = audit.severity[attr] %}
+    {% set explanation = audit.gemini_explanation[attr] %}
+    <div class="attr">
+      <div class="attr-head">
+        <div class="left">
+          <div class="attr-icon">⚲</div>
+          <div>
+            <h3>{{ attr | title }}</h3>
+            <div class="sub">{{ metrics.group_rates.keys() | length }} subgroups evaluated</div>
+          </div>
+        </div>
+        <span class="pill {% if severity == 'High' %}high{% elif severity == 'Moderate' %}mod{% else %}low{% endif %}">● {{ severity }} severity</span>
+      </div>
+      <div class="attr-body">
+        <div>
+          <div class="metrics">
+            <div class="metric"><div class="name">Demographic Parity Δ</div><div class="val" style="color:{% if metrics.demographic_parity_difference <= 0.10 %}#0f766e{% else %}#b91c1c{% endif %}">{{ "%.3f" | format(metrics.demographic_parity_difference) }}</div><div class="bar"><i style="width:{{ (metrics.demographic_parity_difference / 0.5) * 100 }}%; max-width:100%; background:{% if metrics.demographic_parity_difference <= 0.10 %}var(--teal){% else %}var(--rose){% endif %}"></i></div><div class="hint">Target &le; 0.10</div></div>
+            <div class="metric"><div class="name">Disparate Impact</div><div class="val" style="color:{% if metrics.disparate_impact_ratio >= 0.80 %}#0f766e{% else %}#b91c1c{% endif %}">{{ "%.3f" | format(metrics.disparate_impact_ratio) }}</div><div class="bar"><i style="width:{{ (metrics.disparate_impact_ratio / 1.5) * 100 }}%; max-width:100%; background:{% if metrics.disparate_impact_ratio >= 0.80 %}var(--teal){% else %}var(--rose){% endif %}"></i></div><div class="hint">Target &ge; 0.80 (4/5 rule)</div></div>
+            <div class="metric"><div class="name">Statistical Parity Δ</div><div class="val" style="color:{% if metrics.statistical_parity_difference <= 0.10 %}#0f766e{% else %}#b91c1c{% endif %}">{{ "%.3f" | format(metrics.statistical_parity_difference) }}</div><div class="bar"><i style="width:{{ (metrics.statistical_parity_difference / 0.5) * 100 }}%; max-width:100%; background:{% if metrics.statistical_parity_difference <= 0.10 %}var(--teal){% else %}var(--rose){% endif %}"></i></div><div class="hint">Target &le; 0.10</div></div>
+            <div class="metric"><div class="name">Equalized Odds Δ</div><div class="val" style="color:{% if metrics.equalized_odds_difference <= 0.10 %}#0f766e{% else %}#b91c1c{% endif %}">{{ "%.3f" | format(metrics.equalized_odds_difference) }}</div><div class="bar"><i style="width:{{ (metrics.equalized_odds_difference / 0.5) * 100 }}%; max-width:100%; background:{% if metrics.equalized_odds_difference <= 0.10 %}var(--teal){% else %}var(--rose){% endif %}"></i></div><div class="hint">{% if metrics.equalized_odds_difference <= 0.10 %}Within tolerance{% else %}Critical disparity{% endif %}</div></div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <h4>Positive outcome rate by group</h4>
+          <div class="html-chart-container">
+            {% set colors = ['#6d5efc', '#8b7bff', '#f59e0b', '#ef4444', '#0bb39a', '#eeebff'] %}
+            {% set max_rate = 0.50 %}
+            <div class="html-y-axis">
+              <span>50%</span><span>40%</span><span>30%</span><span>20%</span><span>10%</span><span>0%</span>
+            </div>
+            <div class="html-chart-area">
+              <div class="html-grid-line" style="bottom: 20%;"></div>
+              <div class="html-grid-line" style="bottom: 40%;"></div>
+              <div class="html-grid-line" style="bottom: 60%;"></div>
+              <div class="html-grid-line" style="bottom: 80%;"></div>
+              <div class="html-grid-line" style="bottom: 100%;"></div>
+              {% for k, v in metrics.group_rates.items() %}
+              <div class="html-col">
+                <div class="fill" style="height: {{ (v / max_rate) * 100 }}%; background: {{ colors[loop.index0 % colors|length] }};"></div>
+                <span class="ax">{{ k }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="insight">
+        <div class="card">
+          <div class="lab">Clairo Insight</div>
+          <p>{{ explanation.insight_sentence | safe }} {% if not explanation.insight_sentence %}{{ explanation.summary | safe }}{% endif %}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section>
+    <div class="sec-head"><h2>Recommended Remediations</h2><div class="rule"></div></div>
+    <div class="recs">
+      <div class="rec"><span class="tag">Data</span><h4>Rebalance with SMOTE</h4><p>Synthetically oversample minority subgroups to equalize representation before training. Effective when DP Δ &gt; 0.10.</p></div>
+      <div class="rec"><span class="tag">Data</span><h4>Remove proxy variables</h4><p>Identify columns correlated &gt;0.5 with sensitive attributes (e.g., zip code, occupation) and drop or transform them.</p></div>
+      <div class="rec"><span class="tag">Model</span><h4>Reweight training samples</h4><p>Apply <span class="mono">class_weight='balanced'</span> or fairness-aware reweighting to penalize biased predictions during training.</p></div>
+      <div class="rec"><span class="tag">Model</span><h4>Per-group threshold calibration</h4><p>Tune decision thresholds per subgroup post-training to equalize true-positive rates without retraining.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>© 2026 Clairo · Confidential audit artifact · Do not redistribute</div>
+    <div><span class="badge">⚡ Powered by Clairo Fairness Engine v2.1</span></div>
+  </footer>
+</div>
+
+</script>
+</body>
+</html>

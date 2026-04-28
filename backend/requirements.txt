@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+firebase-admin
+google-genai
+pandas
+openpyxl
+numpy
+scikit-learn
+fairlearn
+python-multipart
+jinja2
+weasyprint
